@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>C on Mayo&#39;s Blog</title>
+    <link>https://mayoyamasaki.github.io/tags/c/</link>
+    <description>Recent content in C on Mayo&#39;s Blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>ja</language>
+    <lastBuildDate>Sun, 14 Aug 2016 18:52:46 +0800</lastBuildDate>
+    <atom:link href="https://mayoyamasaki.github.io/tags/c/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Assembly on Mac OS X 101</title>
+      <link>https://mayoyamasaki.github.io/content/post/assembly-on-mac-os-x-101/</link>
+      <pubDate>Sun, 14 Aug 2016 18:52:46 +0800</pubDate>
+      
+      <guid>https://mayoyamasaki.github.io/content/post/assembly-on-mac-os-x-101/</guid>
+      <description>
+
+&lt;h2 id=&#34;概要&#34;&gt;概要&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;アセンブリ言語は、&lt;a href=&#34;https://ja.wikipedia.org/wiki/X64&#34;&gt;x86-64&lt;/a&gt;を使用する。&lt;/li&gt;
+&lt;li&gt;アセンブラは、&lt;a href=&#34;http://www.nasm.us/&#34;&gt;NASM(Netwide Assembler)&lt;/a&gt;を使用する。&lt;/li&gt;
+&lt;li&gt;OS X上での「Hello World」と「C言語からの関数呼び出し」のサンプルコードを紹介する。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;はじめに&#34;&gt;はじめに&lt;/h2&gt;
+
+&lt;p&gt;アセンブリ言語は、命令セットアーキテクチャ(x86、ARMなど)やアセンブラ(NASM、&lt;a href=&#34;https://ja.wikipedia.org/wiki/GNU%E3%82%A2%E3%82%BB%E3%83%B3%E3%83%96%E3%83%A9&#34;&gt;GAS&lt;/a&gt;)が採用する構文(Intel、AT&amp;amp;T)、bit数に従って、若干異なる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;br /&gt;
+この記事では、64bitのx86-64(x64)のアセンブリ言語を、NASM(Intel構文)を用いてOS Xの実行ファイル形式Mach-Oに変換する。&lt;/p&gt;
+
+&lt;p&gt;この記事のプログラムは、OS X EL Capitan上にて確認している。実行に際して必要になるものはgccとld、NASMだけであり、NASMはbrewを使って簡単にインストールすることができる。&lt;/p&gt;
+
+&lt;h2 id=&#34;hello-world&#34;&gt;Hello World&lt;/h2&gt;
+
+&lt;p&gt;以下に、Hello Worldのプログラムを示す。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #f8f8f8&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;; helloworld.asm&lt;/span&gt;
+
+&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;GLOBAL&lt;/span&gt; &lt;span style=&#34;color: #19177C&#34;&gt;start&lt;/span&gt;
+
+
+&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;SECTION&lt;/span&gt; &lt;span style=&#34;color: #19177C&#34;&gt;.data&lt;/span&gt;
+&lt;span style=&#34;color: #0000FF&#34;&gt;str_hello&lt;/span&gt;   &lt;span style=&#34;color: #19177C&#34;&gt;db&lt;/span&gt;  &lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;Hello World&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #666666&#34;&gt;0x0a&lt;/span&gt; &lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;; Output string and \n&lt;/span&gt;
+
+
+&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;SECTION&lt;/span&gt; &lt;span style=&#34;color: #19177C&#34;&gt;.text&lt;/span&gt;
+&lt;span style=&#34;color: #A0A000&#34;&gt;start:&lt;/span&gt;
+    &lt;span style=&#34;color: #0000FF&#34;&gt;mov&lt;/span&gt; &lt;span style=&#34;color: #008000&#34;&gt;rax&lt;/span&gt;, &lt;span style=&#34;color: #666666&#34;&gt;0x2000004&lt;/span&gt;      &lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;; Set system call to write=4.&lt;/span&gt;
+    &lt;span style=&#34;color: #0000FF&#34;&gt;mov&lt;/span&gt; &lt;span style=&#34;color: #008000&#34;&gt;rdi&lt;/span&gt;, &lt;span style=&#34;color: #666666&#34;&gt;1&lt;/span&gt;              &lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;; Set output to stdout.&lt;/span&gt;
+    &lt;span style=&#34;color: #0000FF&#34;&gt;mov&lt;/span&gt; &lt;span style=&#34;color: #008000&#34;&gt;rsi&lt;/span&gt;, &lt;span style=&#34;color: #19177C&#34;&gt;str_hello&lt;/span&gt;      &lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;; Set output data.&lt;/span&gt;
+    &lt;span style=&#34;color: #0000FF&#34;&gt;mov&lt;/span&gt; &lt;span style=&#34;color: #008000&#34;&gt;rdx&lt;/span&gt;, &lt;span style=&#34;color: #666666&#34;&gt;13&lt;/span&gt;             &lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;; Set output data size.&lt;/span&gt;
+    &lt;span style=&#34;color: #0000FF&#34;&gt;syscall&lt;/span&gt;                 &lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;; Call system call.&lt;/span&gt;
+    &lt;span style=&#34;color: #0000FF&#34;&gt;mov&lt;/span&gt; &lt;span style=&#34;color: #008000&#34;&gt;rax&lt;/span&gt;, &lt;span style=&#34;color: #666666&#34;&gt;0x2000001&lt;/span&gt;      &lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;; Set system call to exit=1.&lt;/span&gt;
+    &lt;span style=&#34;color: #0000FF&#34;&gt;mov&lt;/span&gt; &lt;span style=&#34;color: #008000&#34;&gt;rdi&lt;/span&gt;, &lt;span style=&#34;color: #666666&#34;&gt;0&lt;/span&gt;              &lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;; Set success value of exit.&lt;/span&gt;
+    &lt;span style=&#34;color: #0000FF&#34;&gt;syscall&lt;/span&gt;                 &lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;; Call system call.&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;ここでは、アセンブリ言語の詳細は解説しない。詳しは入門サイトなどを参照されたい&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:2&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:2&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:3&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:3&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;このプログラムは、下記の手続きで実行できる。 &lt;code&gt;-f&lt;/code&gt;は、出力する実行ファイルのフォーマットを指定している。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #f8f8f8&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;$ nasm -f macho64 helloworld.asm
+$ ld -o helloworld helloworld.o
+$ ./helloworld
+Hello World
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h2 id=&#34;c言語からの関数呼び出し&#34;&gt;C言語からの関数呼び出し&lt;/h2&gt;
+
+&lt;p&gt;アセンブリ言語で記述した関数を、C言語とリンクして実行する。&amp;ndash;
+以下に、アセンブリ言語で記述した二乗関数(square)のプログラムを示す。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #f8f8f8&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;GLOBAL&lt;/span&gt; &lt;span style=&#34;color: #19177C&#34;&gt;_square&lt;/span&gt;
+
+&lt;span style=&#34;color: #A0A000&#34;&gt;_square:&lt;/span&gt;
+    &lt;span style=&#34;color: #0000FF&#34;&gt;push&lt;/span&gt;    &lt;span style=&#34;color: #008000&#34;&gt;rbp&lt;/span&gt;
+    &lt;span style=&#34;color: #0000FF&#34;&gt;mov&lt;/span&gt;     &lt;span style=&#34;color: #008000&#34;&gt;rbp&lt;/span&gt;, &lt;span style=&#34;color: #008000&#34;&gt;rsp&lt;/span&gt;
+    &lt;span style=&#34;color: #0000FF&#34;&gt;mov&lt;/span&gt;     &lt;span style=&#34;color: #008000&#34;&gt;rax&lt;/span&gt;, &lt;span style=&#34;color: #008000&#34;&gt;rdi&lt;/span&gt;
+    &lt;span style=&#34;color: #0000FF&#34;&gt;imul&lt;/span&gt;    &lt;span style=&#34;color: #008000&#34;&gt;rax&lt;/span&gt;, &lt;span style=&#34;color: #008000&#34;&gt;rdi&lt;/span&gt;
+    &lt;span style=&#34;color: #0000FF&#34;&gt;mov&lt;/span&gt;     &lt;span style=&#34;color: #008000&#34;&gt;rsp&lt;/span&gt;, &lt;span style=&#34;color: #008000&#34;&gt;rbp&lt;/span&gt;
+    &lt;span style=&#34;color: #0000FF&#34;&gt;pop&lt;/span&gt;     &lt;span style=&#34;color: #008000&#34;&gt;rbp&lt;/span&gt;
+    &lt;span style=&#34;color: #0000FF&#34;&gt;ret&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;次に呼び出す側のCプログラムを示す。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #f8f8f8&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #BC7A00&#34;&gt;#include&lt;/span&gt; &lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;&amp;lt;stdio.h&amp;gt;&lt;/span&gt;&lt;span style=&#34;color: #BC7A00&#34;&gt;&lt;/span&gt;
+
+&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;extern&lt;/span&gt; &lt;span style=&#34;color: #B00040&#34;&gt;int&lt;/span&gt; &lt;span style=&#34;color: #0000FF&#34;&gt;square&lt;/span&gt;(&lt;span style=&#34;color: #B00040&#34;&gt;int&lt;/span&gt;);
+
+&lt;span style=&#34;color: #B00040&#34;&gt;int&lt;/span&gt; &lt;span style=&#34;color: #0000FF&#34;&gt;main&lt;/span&gt;(&lt;span style=&#34;color: #B00040&#34;&gt;void&lt;/span&gt;)
+{
+    printf(&lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;%d&lt;/span&gt;&lt;span style=&#34;color: #BB6622; font-weight: bold&#34;&gt;\n&lt;/span&gt;&lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;&lt;/span&gt;, square(&lt;span style=&#34;color: #666666&#34;&gt;12&lt;/span&gt;));
+    &lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;return&lt;/span&gt; &lt;span style=&#34;color: #666666&#34;&gt;0&lt;/span&gt;;
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;これらのプログラム配下の様にして実行する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #f8f8f8&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;$ nasm -f macho64 square.asm
+$ gcc -o main main.c square.o
+$ ./main
+144
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&#34;おわりに&#34;&gt;おわりに&lt;/h3&gt;
+
+&lt;p&gt;この記事では、OS X上でのX86アセンブリ言語の実行方法と、C言語とのリンク方法について紹介した。&lt;/p&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34;&gt;&lt;a href=&#34;http://www.ibm.com/developerworks/jp/linux/library/l-gas-nasm.html&#34;&gt;Linux のアセンブラー: GAS と NASM を比較する&lt;/a&gt;
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34;&gt;&lt;a href=&#34;http://www5c.biglobe.ne.jp/~ecb/assembler/assembler00.html&#34;&gt;アセンブラ入門&lt;/a&gt;
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:2&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:3&#34;&gt;&lt;a href=&#34;http://homepage1.nifty.com/herumi/prog/x64.html#GCC64&#34;&gt;x64 アセンブリ言語プログラミング&lt;/a&gt;
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:3&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

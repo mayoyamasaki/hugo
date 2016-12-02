@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Neo4j on Mayo&#39;s Blog</title>
+    <link>https://mayoyamasaki.github.io/tags/neo4j/</link>
+    <description>Recent content in Neo4j on Mayo&#39;s Blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>ja</language>
+    <lastBuildDate>Wed, 16 Nov 2016 00:29:37 +0900</lastBuildDate>
+    <atom:link href="https://mayoyamasaki.github.io/tags/neo4j/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Introduction to Neo4j</title>
+      <link>https://mayoyamasaki.github.io/content/post/introduction-to-neo4j/</link>
+      <pubDate>Wed, 16 Nov 2016 00:29:37 +0900</pubDate>
+      
+      <guid>https://mayoyamasaki.github.io/content/post/introduction-to-neo4j/</guid>
+      <description>
+
+&lt;h2 id=&#34;概要&#34;&gt;概要&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Neo4jの公式ドキュメントを読んだので、概要をまとめた。&lt;/li&gt;
+&lt;li&gt;概念、クエリ文法、Pythonドライバの使い方について解説した。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;はじめに&#34;&gt;はじめに&lt;/h2&gt;
+
+&lt;p&gt;&lt;img src=&#34;https://mayoyamasaki.github.io/images/introduction-to-neo4j/neo4j_logo.png&#34; alt=&#34;Neo4j&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;2016/11/15現在、Neo4jの最新版は、3系(3.0.7)で、公式サイトからdmg(Mac OSの場合)が配布されている&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;br /&gt;
+公式ドキュメントのv3を斜め読みしたので、簡単に解説する&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:2&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:2&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;h2 id=&#34;導入&#34;&gt;導入&lt;/h2&gt;
+
+&lt;p&gt;Neo4jはスキーマレスDBで、グラフデータの扱い特化することで、高い検索パフォーマンスを発揮している。
+データは、「Node」、「Relationship」、「Propetries」で表現される。&lt;br /&gt;
+下図の場合、PersonやMovieで囲まれいるオブジェクトがNodeで、Node間に貼られているエッジ(有効辺の場合は矢印)がRelationshipであり、各Nodeが所有するnameやbornなどの値がPropetriesである。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;https://mayoyamasaki.github.io/images/introduction-to-neo4j/graphdb-simple-labels.svg&#34; alt=&#34;Example Graph&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;またNodeやRelationshipには、「Label」と呼ばれる複数個付与することができる。Labelは何らかの集合を意味し、上図の場合は、PersonやMovie、ACTED_INがLabelに相当する。&lt;/p&gt;
+
+&lt;p&gt;データはこれらの概念で表現されるが、グラフを探索する上で、「Path」と「Traversal」という概念がある。&lt;br /&gt;
+Pathは、Relationshipで接続されるNodeのことで、検索結果などを表す概念である。また、Traversalは検索方法を表す概念であり、「Tom HanksというNodeとACTED_INのRelationshipにあるNode」というようなクエリのことを意味している。この場合、Forrest GumpのNodeが下図のようなPathとして返されることになる。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;https://mayoyamasaki.github.io/images/introduction-to-neo4j/graphdb-path.svg&#34; alt=&#34;Example Path&#34; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&#34;入門&#34;&gt;入門&lt;/h2&gt;
+
+&lt;h3 id=&#34;cypher&#34;&gt;Cypher&lt;/h3&gt;
+
+&lt;p&gt;Neo4jのデータは、Cypherと呼ばれるクエリ言語用いて扱う。例えば、Pathの例であげた図のデータをCypherで表現すると次の様になる(tomやgumpはアクセス用の変数である)。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #f8f8f8&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;(&lt;span style=&#34;color: #A0A000&#34;&gt;tom&lt;/span&gt;:Person     {&lt;span style=&#34;color: #A0A000&#34;&gt;name&lt;/span&gt;: &lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;Tom Hanks&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #A0A000&#34;&gt;born&lt;/span&gt;:&lt;span style=&#34;color: #666666&#34;&gt;1986&lt;/span&gt;})
+&lt;span style=&#34;color: #666666&#34;&gt;-&lt;/span&gt;[&lt;span style=&#34;color: #A0A000&#34;&gt;role&lt;/span&gt;:ACTED_IN {&lt;span style=&#34;color: #A0A000&#34;&gt;roles&lt;/span&gt;: [&lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;Forrest&amp;quot;&lt;/span&gt;]}] &lt;span style=&#34;color: #666666&#34;&gt;-&amp;gt;&lt;/span&gt;
+(&lt;span style=&#34;color: #A0A000&#34;&gt;gump&lt;/span&gt;:Movie     {&lt;span style=&#34;color: #A0A000&#34;&gt;title&lt;/span&gt;: &lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;Forrest Gump&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #A0A000&#34;&gt;released&lt;/span&gt;:&lt;span style=&#34;color: #666666&#34;&gt;1994&lt;/span&gt;})
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&#34;データの作成と変数&#34;&gt;データの作成と変数&lt;/h3&gt;
+
+&lt;p&gt;CREATE文でデータの作成、RETURNで変数からデータを取得できる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #f8f8f8&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;CREATE (&lt;span style=&#34;color: #A0A000&#34;&gt;tom&lt;/span&gt;:Person     {&lt;span style=&#34;color: #A0A000&#34;&gt;name&lt;/span&gt;: &lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;Tom Hanks&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #A0A000&#34;&gt;born&lt;/span&gt;:&lt;span style=&#34;color: #666666&#34;&gt;1986&lt;/span&gt;})
+&lt;span style=&#34;color: #666666&#34;&gt;-&lt;/span&gt;[&lt;span style=&#34;color: #A0A000&#34;&gt;role&lt;/span&gt;:ACTED_IN {&lt;span style=&#34;color: #A0A000&#34;&gt;roles&lt;/span&gt;: [&lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;Forrest&amp;quot;&lt;/span&gt;]}] &lt;span style=&#34;color: #666666&#34;&gt;-&amp;gt;&lt;/span&gt;
+(&lt;span style=&#34;color: #A0A000&#34;&gt;gump&lt;/span&gt;:Movie     {&lt;span style=&#34;color: #A0A000&#34;&gt;title&lt;/span&gt;: &lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;Forrest Gump&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #A0A000&#34;&gt;released&lt;/span&gt;:&lt;span style=&#34;color: #666666&#34;&gt;1994&lt;/span&gt;})
+RETURN tom
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&#34;matchによるデータの検索&#34;&gt;MATCHによるデータの検索&lt;/h3&gt;
+
+&lt;p&gt;データ表現をMATCHに渡すことで、複雑なクエリも構築できる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #f8f8f8&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;MATCH (&lt;span style=&#34;color: #A0A000&#34;&gt;p&lt;/span&gt;:Person { &lt;span style=&#34;color: #A0A000&#34;&gt;name&lt;/span&gt;:&lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;Tom Hanks&amp;quot;&lt;/span&gt; })&lt;span style=&#34;color: #666666&#34;&gt;-&lt;/span&gt;[&lt;span style=&#34;color: #A0A000&#34;&gt;r&lt;/span&gt;:ACTED_IN]&lt;span style=&#34;color: #666666&#34;&gt;-&amp;gt;&lt;/span&gt;(&lt;span style=&#34;color: #A0A000&#34;&gt;m&lt;/span&gt;:Movie)
+RETURN m.title, r.roles
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&#34;データのマージ&#34;&gt;データのマージ&lt;/h3&gt;
+
+&lt;p&gt;データやPropetriesが存在しないときだけ、その値を追加したい場合はMERGEが使える。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #f8f8f8&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;MERGE (&lt;span style=&#34;color: #A0A000&#34;&gt;m&lt;/span&gt;:Movie { &lt;span style=&#34;color: #A0A000&#34;&gt;title&lt;/span&gt;:&lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;Cloud Atlas&amp;quot;&lt;/span&gt; })
+ON CREATE SET m.released &lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color: #666666&#34;&gt;2012&lt;/span&gt;
+RETURN m
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&#34;結果のフィルタリング&#34;&gt;結果のフィルタリング&lt;/h3&gt;
+
+&lt;p&gt;RDBのSQLと同じく、WHEREによる条件指定やASによるエイリアス、ORDER BYによるソートなどの機能がある&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:3&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:3&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;h2 id=&#34;ドライバ&#34;&gt;ドライバ&lt;/h2&gt;
+
+&lt;p&gt;公式ドキュメントでは、C#、Java、JavaScrip、Pythonのドライバを紹介している&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:4&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:4&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #f8f8f8&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;from&lt;/span&gt; &lt;span style=&#34;color: #0000FF; font-weight: bold&#34;&gt;neo4j.v1&lt;/span&gt; &lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;import&lt;/span&gt; GraphDatabase, basic_auth
+
+driver &lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt; GraphDatabase&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;driver(
+        &lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;bolt://localhost&amp;quot;&lt;/span&gt;, auth&lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt;basic_auth(&lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;neo4j&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;neo4j&amp;quot;&lt;/span&gt;), encrypted&lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;True&lt;/span&gt;)
+
+session &lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt; driver&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;session()
+
+session&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;run(&lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;CREATE (a:Person {name:&amp;#39;Arthur&amp;#39;, title:&amp;#39;King&amp;#39;})&amp;quot;&lt;/span&gt;)
+
+result &lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt; session&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;run(&lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;MATCH (a:Person) WHERE a.name = &amp;#39;Arthur&amp;#39; &amp;quot;&lt;/span&gt;
+                      &lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;RETURN a.name AS name, a.title AS title&amp;quot;&lt;/span&gt;)
+
+&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color: #AA22FF; font-weight: bold&#34;&gt;in&lt;/span&gt; result:
+    &lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;print&lt;/span&gt;(&lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&#34;color: #BB6688; font-weight: bold&#34;&gt;%s&lt;/span&gt;&lt;span style=&#34;color: #BA2121&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #BB6688; font-weight: bold&#34;&gt;%s&lt;/span&gt;&lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;&lt;/span&gt; &lt;span style=&#34;color: #666666&#34;&gt;%&lt;/span&gt; (record[&lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;title&amp;quot;&lt;/span&gt;], record[&lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;name&amp;quot;&lt;/span&gt;]))
+
+session&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;close()
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;これは、Pythonのサンプルプグラムのそのままであるが、このコードの理解だけで、問題なく利用できる。&lt;br /&gt;
+さて、boltスキーマを初めて見る人が多いと思うが、Neo4jが策定したバイナリネットワークプトトコルであるとのこと&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:5&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:5&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;h2 id=&#34;おわりに&#34;&gt;おわりに&lt;/h2&gt;
+
+&lt;p&gt;とりあえず基本的な内容は理解できたが、Cypherはパワフルなクエリ言語なので、全容はつかめていないが、とりあえず使う文には、難しくない様に感じた。&lt;br /&gt;
+今後は、Neo4jのグラフデータを可視化するツールはいくつかあり、&lt;a href=&#34;http://www.popotojs.com/&#34;&gt;Popotojs&lt;/a&gt;が良さそうなので、これを試してみたい。&lt;/p&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34;&gt;&lt;a href=&#34;https://neo4j.com/&#34;&gt;neo4j&lt;/a&gt;
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34;&gt;&lt;a href=&#34;https://neo4j.com/docs/developer-manual/current/&#34;&gt;The Neo4j Developer Manual v3.0&lt;/a&gt;
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:2&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:3&#34;&gt;&lt;a href=&#34;https://neo4j.com/docs/developer-manual/current/get-started/&#34;&gt;Chapter 2. Get started&lt;/a&gt;
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:3&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:4&#34;&gt;&lt;a href=&#34;https://neo4j.com/docs/developer-manual/current/drivers/&#34;&gt;Chapter 4. Drivers&lt;/a&gt;
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:4&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:5&#34;&gt;&lt;a href=&#34;https://www.infoq.com/jp/news/2016/05/neo4j-3.0&#34;&gt;Neo4j 3.0がリリース，バイナリ通信プロトコルと標準ドライバを装備&lt;/a&gt;
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:5&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

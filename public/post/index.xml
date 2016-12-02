@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Mayo&#39;s Blog</title>
-    <link>https://mayoyamasaki.github.io/</link>
-    <description>Recent content on Mayo&#39;s Blog</description>
+    <title>Posts on Mayo&#39;s Blog</title>
+    <link>https://mayoyamasaki.github.io/post/</link>
+    <description>Recent content in Posts on Mayo&#39;s Blog</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>ja</language>
     <lastBuildDate>Fri, 18 Nov 2016 00:04:32 +0900</lastBuildDate>
-    <atom:link href="https://mayoyamasaki.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="https://mayoyamasaki.github.io/post/index.xml" rel="self" type="application/rss+xml" />
     
     <item>
       <title>K-Means Clustering of Word2Vec on Python</title>
@@ -875,25 +875,6 @@ $ ./main
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:3&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>About</title>
-      <link>https://mayoyamasaki.github.io/content/about/</link>
-      <pubDate>Sat, 25 Jun 2016 00:23:51 +0900</pubDate>
-      
-      <guid>https://mayoyamasaki.github.io/content/about/</guid>
-      <description>&lt;p&gt;Hi,&lt;br /&gt;
-This is Mayo Yamasaki, a research engineer in Tokyo.
-I&amp;rsquo;m working at &lt;a href=&#34;http://www.ntt.co.jp/&#34;&gt;NTT&lt;/a&gt; Labs and write some code for Information Search topics.
-My research and development interests are Cybersecurity and  Natural Language Processing(NLP) with Machine Learning.&lt;/p&gt;
-
-&lt;p&gt;In the past, I was working at my startup company in Japan as a co-founder/CTO and participated in internship programs of &lt;a href=&#34;http://www.recruit.jp&#34;&gt;Recruit&lt;/a&gt;, &lt;a href=&#34;http://cookpad.com&#34;&gt;Cookpad&lt;/a&gt; and &lt;a href=&#34;https://mixi.jp&#34;&gt;mixi&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;I graduated from &lt;a href=&#34;http://www.naist.jp/&#34;&gt;Nara Institute of Science and Technology&lt;/a&gt;, advised by &lt;a href=&#34;http://cl.naist.jp/en/&#34;&gt;Yuji Matsumoto&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;This site doesn&amp;rsquo;t reflect my cuurent employer&amp;rsquo;s views and opinions.&lt;/p&gt;
 </description>
     </item>
     

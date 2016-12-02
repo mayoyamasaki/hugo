@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Rust on Mayo&#39;s Blog</title>
+    <link>https://mayoyamasaki.github.io/tags/rust/</link>
+    <description>Recent content in Rust on Mayo&#39;s Blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>ja</language>
+    <lastBuildDate>Sat, 24 Sep 2016 17:27:31 +0900</lastBuildDate>
+    <atom:link href="https://mayoyamasaki.github.io/tags/rust/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Rust inside Python for using hyper HTTP client</title>
+      <link>https://mayoyamasaki.github.io/content/post/rust-inside-python-for-using-hyper-http-client/</link>
+      <pubDate>Sat, 24 Sep 2016 17:27:31 +0900</pubDate>
+      
+      <guid>https://mayoyamasaki.github.io/content/post/rust-inside-python-for-using-hyper-http-client/</guid>
+      <description>
+
+&lt;h2 id=&#34;概要&#34;&gt;概要&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://www.rust-lang.org&#34;&gt;Rust&lt;/a&gt;の&lt;a href=&#34;https://ja.wikipedia.org/wiki/Foreign_function_interface&#34;&gt;FFI(Foreign Function Interface)&lt;/a&gt;を用いて、Rustの関数をPythonから利用する。&lt;/li&gt;
+&lt;li&gt;この関数では、Rust向けのHTTPライブラリ&lt;a href=&#34;https://github.com/hyperium/hyper&#34;&gt;hyper&lt;/a&gt;を利用して、受け取ったURLリストのHTMLを並行処理で取得する。&lt;/li&gt;
+&lt;li&gt;これらのプログラムは、Mac OS X 10.11.6上で、動作を確認している。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;はじめに&#34;&gt;はじめに&lt;/h2&gt;
+
+&lt;p&gt;Rust言語は、安全性、速度、並行性を目標に掲げたシステムレベルのプログラミング言語である。
+Rustの並行処理では、Python等の言語で見られる&lt;a href=&#34;https://ja.wikipedia.org/wiki/%E3%82%B0%E3%83%AD%E3%83%BC%E3%83%90%E3%83%AB%E3%82%A4%E3%83%B3%E3%82%BF%E3%83%97%E3%83%AA%E3%82%BF%E3%83%AD%E3%83%83%E3%82%AF&#34;&gt;GIL(Global Interpreter Lock)&lt;/a&gt;の制約がなく、高い並行性を実現している&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
+この記事では、Rustで記述した並行処理の関数を、Pythonから実行し、RustのFFIや並行処理についてのサンプルプログラムを示すことを目的としている。
+基本的なRustプログラミングとFFIの使用法については、参考サイトを参照されたい&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:2&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:2&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:3&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:3&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。
+尚、紹介するサンプルプログラムでは、基本的にエラー処理を割愛している。&lt;/p&gt;
+
+&lt;p&gt;以下に解説するプログラムはGithub上に公開している&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:4&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:4&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;h2 id=&#34;環境と依存&#34;&gt;環境と依存&lt;/h2&gt;
+
+&lt;p&gt;この記事では、Rust 1.10とPython 3.5、および、以下のクレートを使用している。
+尚、OS X上でhyperクレートを使用する場合は、hyperがrust-opensslを使用しているため、opensslへの環境変数の設定が必要&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:5&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:5&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;パッケージ名&lt;/th&gt;
+&lt;th&gt;Version&lt;/th&gt;
+&lt;th&gt;用途&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;hyper&lt;/td&gt;
+&lt;td&gt;0.9.10&lt;/td&gt;
+&lt;td&gt;HTTPクライアント&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;libc&lt;/td&gt;
+&lt;td&gt;0.2.16&lt;/td&gt;
+&lt;td&gt;FFI&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;rustc-serialize&lt;/td&gt;
+&lt;td&gt;0.3&lt;/td&gt;
+&lt;td&gt;jsonエンコード&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;h2 id=&#34;ffi-あるいはpythonからのrustの利用&#34;&gt;FFI、あるいはPythonからのRustの利用&lt;/h2&gt;
+
+&lt;p&gt;まず初めに、Rust側の関数は以下のように定義した。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #f8f8f8&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;// src/lib.rs&lt;/span&gt;
+&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;pub&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;extern&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;fn&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;get_htmls_from(urls&lt;span style=&#34;color: #666666&#34;&gt;:*&lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;const&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;*&lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;const&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;c_char,&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;lenght&lt;span style=&#34;color: #666666&#34;&gt;:&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;size_t)&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;*&lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;mut&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;c_char&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;{&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;...&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+}&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;引数は、Pythonにおける以下のような文字列のリストで、Rust側ではc言語の文字型&lt;code&gt;c_char&lt;/code&gt;のポインタのポインタとして定義している。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #f8f8f8&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;# src/main.py&lt;/span&gt;
+urls &lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt; [
+    b&lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;http://example.com/&amp;quot;&lt;/span&gt;,
+    b&lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;https://www.yahoo.com/&amp;quot;&lt;/span&gt;,
+]
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Rust側で受け取った&lt;code&gt;*const *const c_char&lt;/code&gt;は、次の手続きで、&lt;code&gt;String&lt;/code&gt;に変換できる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #f8f8f8&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;// src/lib.rs&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;    &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;let&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;urls&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;unsafe&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;{&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;        &lt;/span&gt;slice&lt;span style=&#34;color: #666666&#34;&gt;::&lt;/span&gt;from_raw_parts(urls,&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;lenght&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;as&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #B00040&#34;&gt;usize&lt;/span&gt;)&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;    &lt;/span&gt;};&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;    &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;let&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;urls&lt;span style=&#34;color: #666666&#34;&gt;:&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;Vec&lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;String&lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;urls.iter()&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;        &lt;/span&gt;.map(&lt;span style=&#34;color: #666666&#34;&gt;|&amp;amp;&lt;/span&gt;p&lt;span style=&#34;color: #666666&#34;&gt;|&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;unsafe&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;{&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;CStr&lt;span style=&#34;color: #666666&#34;&gt;::&lt;/span&gt;from_ptr(p)&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;})&lt;span style=&#34;color: #bbbbbb&#34;&gt;         &lt;/span&gt;&lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;// make iter of &amp;amp;CStr&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;        &lt;/span&gt;.map(&lt;span style=&#34;color: #666666&#34;&gt;|&lt;/span&gt;cs&lt;span style=&#34;color: #666666&#34;&gt;|&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;cs.to_bytes())&lt;span style=&#34;color: #bbbbbb&#34;&gt;                        &lt;/span&gt;&lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;// make iter of &amp;amp;[u8]&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;        &lt;/span&gt;.map(&lt;span style=&#34;color: #666666&#34;&gt;|&lt;/span&gt;bs&lt;span style=&#34;color: #666666&#34;&gt;|&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #B00040&#34;&gt;str&lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;::&lt;/span&gt;from_utf8(bs).unwrap_or(&lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;&amp;quot;&lt;/span&gt;))&lt;span style=&#34;color: #bbbbbb&#34;&gt;     &lt;/span&gt;&lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;// make iter of &amp;amp;str&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;        &lt;/span&gt;.map(&lt;span style=&#34;color: #666666&#34;&gt;|&lt;/span&gt;s&lt;span style=&#34;color: #666666&#34;&gt;|&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;s.to_string())&lt;span style=&#34;color: #bbbbbb&#34;&gt;                         &lt;/span&gt;&lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;// make iter of String&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;        &lt;/span&gt;.collect();&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;FFIでは引数や戻り値の構造が複雑になるに従い、その扱いが難しくなる。そのため、このサンプルプログラムでは、戻り値はjson形式の文字列として定義している。戻り値のjsonは、keyがURL、valueがHTMLのHashMapを単にjson形式に変換したものである。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #f8f8f8&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;// src/lib.rs&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;    &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;let&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;mut&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;url2bodies&lt;span style=&#34;color: #bbbbbb&#34;&gt;  &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;HashMap&lt;span style=&#34;color: #666666&#34;&gt;::&lt;/span&gt;new();&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;    &lt;/span&gt;...&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;    &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;let&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;result&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;json&lt;span style=&#34;color: #666666&#34;&gt;::&lt;/span&gt;encode(&lt;span style=&#34;color: #666666&#34;&gt;&amp;amp;&lt;/span&gt;url2bodies).unwrap();&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;    &lt;/span&gt;CString&lt;span style=&#34;color: #666666&#34;&gt;::&lt;/span&gt;new(result).unwrap().into_raw()&lt;span style=&#34;color: #bbbbbb&#34;&gt;    &lt;/span&gt;&lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;// return value&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;このように定義したRustの関数は、Cargo.tomlにlibの設定を記述し、&lt;code&gt;cargo build --release&lt;/code&gt;することで、&lt;code&gt;target/release/&lt;/code&gt;以下に、実行環境に合わせて、DLL(Dynamic Link Library)が生成される。&lt;/p&gt;
+
+&lt;p&gt;Mac OS X上では、dylibが生成され、以下のようなプログラムで、DLLから関数の呼び出しを行う。PythonからRustで生成したdylibを扱うには、C言語の場合と同様で、&lt;code&gt;ctypes&lt;/code&gt;ライブラリを用いる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:6&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:6&#34;&gt;6&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #f8f8f8&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;# src/main.py&lt;/span&gt;
+&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color: #0000FF&#34;&gt;get_htmls_as_dict_from&lt;/span&gt;(urls):
+    &lt;span style=&#34;color: #BA2121; font-style: italic&#34;&gt;&amp;quot;&amp;quot;&amp;quot; get html content using rust&amp;#39;s dylib concurrently &amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+    DYLIB_PATH &lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color: #BA2121&#34;&gt;&amp;quot;target/release/libhyper_thread.dylib&amp;quot;&lt;/span&gt;
+    lib &lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt; ctypes&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;cdll&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;LoadLibrary(DYLIB_PATH)
+    C_CHAR_P_P &lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt; ctypes&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;c_char_p &lt;span style=&#34;color: #666666&#34;&gt;*&lt;/span&gt; &lt;span style=&#34;color: #008000&#34;&gt;len&lt;/span&gt;(urls)
+    c_urls &lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt; C_CHAR_P_P(&lt;span style=&#34;color: #666666&#34;&gt;*&lt;/span&gt;urls)
+    lib&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;get_htmls_from&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;argtypes &lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt; (C_CHAR_P_P, ctypes&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;c_size_t)
+    lib&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;get_htmls_from&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;restype &lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt; ctypes&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;c_void_p
+    htmls &lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt; lib&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;get_htmls_from(c_urls, &lt;span style=&#34;color: #008000&#34;&gt;len&lt;/span&gt;(urls))
+    &lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;try&lt;/span&gt;:
+        &lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;return&lt;/span&gt; json&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;loads(ctypes&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;cast(htmls, ctypes&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;c_char_p)&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;value&lt;span style=&#34;color: #666666&#34;&gt;.&lt;/span&gt;decode(&lt;span style=&#34;color: #BA2121&#34;&gt;&amp;#39;utf-8&amp;#39;&lt;/span&gt;))
+    &lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;except&lt;/span&gt;:
+        &lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;return&lt;/span&gt; &lt;span style=&#34;color: #008000&#34;&gt;None&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h2 id=&#34;hyperと並行処理&#34;&gt;hyperと並行処理&lt;/h2&gt;
+
+&lt;p&gt;Rustの並行処理ではチャネルを用いて、URLから取得したHTMLをsendしている。hyperによるGETリクエストでは、あらかじめURL structに変換してから、クエリをsendし、戻り値のレスポンスをStringに変換している。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #f8f8f8&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;// src/lib.rs&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;    &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;let&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;(tx,&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;rx)&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;mpsc&lt;span style=&#34;color: #666666&#34;&gt;::&lt;/span&gt;channel();&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;    &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;for&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;url&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;in&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;urls.iter()&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;{&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;        &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;let&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;url&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;url.clone();&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;        &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;let&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;tx&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;tx.clone();&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;        &lt;/span&gt;thread&lt;span style=&#34;color: #666666&#34;&gt;::&lt;/span&gt;spawn(move&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;||&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;{&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;            &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;let&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;client&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;Client&lt;span style=&#34;color: #666666&#34;&gt;::&lt;/span&gt;new();&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;            &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;let&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;mut&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;html&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;String&lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;::&lt;/span&gt;new();&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;            &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;match&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;Url&lt;span style=&#34;color: #666666&#34;&gt;::&lt;/span&gt;parse(&lt;span style=&#34;color: #666666&#34;&gt;&amp;amp;&lt;/span&gt;url)&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;{&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;                &lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;Result&lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;::&lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;Err&lt;/span&gt;(_)&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;=&amp;gt;&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;{},&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;                &lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;Result&lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;::&lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;Ok&lt;/span&gt;(hyper_url)&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;=&amp;gt;&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;{&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;                    &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;match&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;client.get(hyper_url).send()&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;{&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;                        &lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;Result&lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;::&lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;Err&lt;/span&gt;(_)&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;=&amp;gt;&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;{},&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;                        &lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;Result&lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;::&lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;Ok&lt;/span&gt;(&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;mut&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;res)&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;=&amp;gt;&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;{&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;                            &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;match&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;res.read_to_string(&lt;span style=&#34;color: #666666&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;mut&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;html)&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;{&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;                                &lt;/span&gt;_&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;=&amp;gt;&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;{}&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;                            &lt;/span&gt;}&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;                        &lt;/span&gt;}&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;                    &lt;/span&gt;}&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;                &lt;/span&gt;}&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;            &lt;/span&gt;};&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;            &lt;/span&gt;tx.send((url,&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;html)).unwrap();&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;        &lt;/span&gt;});&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;    &lt;/span&gt;}&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;最後に、全てのrxで受け取った値をHashMapにinsertする。尚、recvする順序は不定のためkeyとなるURLもsendしている。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #f8f8f8&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #408080; font-style: italic&#34;&gt;// src/lib.rs&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;    &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;for&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;_&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;in&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;urls.iter()&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;{&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;        &lt;/span&gt;&lt;span style=&#34;color: #008000; font-weight: bold&#34;&gt;match&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;rx.recv()&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;{&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;            &lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;Result&lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;::&lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;Ok&lt;/span&gt;((url,&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;html))&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;=&amp;gt;&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;{&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;url2bodies.insert(url,&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;html);&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;},&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;            &lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;Result&lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;::&lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;Err&lt;/span&gt;(_)&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;&lt;span style=&#34;color: #666666&#34;&gt;=&amp;gt;&lt;/span&gt;&lt;span style=&#34;color: #bbbbbb&#34;&gt; &lt;/span&gt;{}&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;        &lt;/span&gt;}&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color: #bbbbbb&#34;&gt;    &lt;/span&gt;}&lt;span style=&#34;color: #bbbbbb&#34;&gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h2 id=&#34;おわりに&#34;&gt;おわりに&lt;/h2&gt;
+
+&lt;p&gt;この記事では、PythonからRustの並行処理を利用するためのサンプルプログラムを紹介し、題材としてhyperのHTTPクライアントを扱った。
+PythonからRustで生成したDLLを使用する際は、それぞれctypesとlibc/ffiを使用するため、C言語での値の受渡しを考える必要があり、単にPythonからC言語で生成したDLLを使用するのに比べて関心ごとが増えてしまう。
+なので、モダンな言語使用を持つRustが、C言語に比べてある程度有効な場合においては、Python/Cの代わりにPython/Rustを検討してみるのはありかもしれない。&lt;/p&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34;&gt;&lt;a href=&#34;https://rust-lang-ja.github.io/the-rust-programming-language-ja/1.6/book/rust-inside-other-languages.html&#34;&gt;Rust Inside Other Languages&lt;/a&gt;
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34;&gt;&lt;a href=&#34;https://rust-lang-ja.github.io/the-rust-programming-language-ja/1.6/book/README.html&#34;&gt;プログラミング言語Rust&lt;/a&gt;
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:2&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:3&#34;&gt;&lt;a href=&#34;http://jakegoulding.com/rust-ffi-omnibus/&#34;&gt;The Rust FFI Omnibus&lt;/a&gt;
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:3&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:4&#34;&gt;&lt;a href=&#34;https://github.com/mayoyamasaki/sample-hyper-thread&#34;&gt;sample-hyper-thread&lt;/a&gt;
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:4&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:5&#34;&gt;&lt;a href=&#34;https://github.com/sfackler/rust-openssl&#34;&gt;rust-openssl&lt;/a&gt;
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:5&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:6&#34;&gt;&lt;a href=&#34;http://docs.python.jp/3.5/library/ctypes.html&#34;&gt;16.16. ctypes — Pythonのための外部関数ライブラリ&lt;/a&gt;
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:6&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>
