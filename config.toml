@@ -1,0 +1,15 @@
+baseurl = "https://mayoyamasaki.github.io/"
+languageCode = "ja"
+title = "Mayo's Blog"
+disqusShortname = "mayoyamasaki"
+paginate = 10
+paginatePath = "page"
+pygmentscodefences = true
+pygmentsstyle = "default"
+
+[params]
+    subtitle = ""
+    github = "https://github.com/mayoyamasaki"
+    twitter = "https://twitter.com/mayoyamasaki"
+    copyright = "Copyright (c) 2016, mayo yamasaki all rights reserved."
+    showsRSS = true
